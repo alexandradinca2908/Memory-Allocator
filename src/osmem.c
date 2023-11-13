@@ -129,7 +129,7 @@ struct block_meta *find_block_with_size(struct block_meta **memoryHead, size_t s
 
 		if (iter->status == STATUS_FREE) {
 			void *area = sbrk(align_block(size - iter->size));
-			DIE (area == MAP_FAILED, "Error in expanding the last block");
+			DIE(area == MAP_FAILED, "Error in expanding the last block");
 			set_block_meta(iter, STATUS_ALLOC, size);
 
 			return iter;
