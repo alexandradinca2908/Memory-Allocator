@@ -18,7 +18,6 @@ size_t align_block(size_t size) {
 
 //  Add a new meta block in memory list
 void add_block_in_list(struct block_meta **memoryHead, struct block_meta *newBlock) {
-
 	//  Check to see if it's the first alloc
 	if (*memoryHead == NULL) {
 		*memoryHead = newBlock;
@@ -56,7 +55,7 @@ void add_block_in_list(struct block_meta **memoryHead, struct block_meta *newBlo
 		iter->next = newBlock;
 		newBlock->prev = iter;
 		newBlock->next = NULL;
-	}		
+	}
 }
 
 void set_block_meta(struct block_meta *newBlock, int status, size_t size) {
@@ -65,8 +64,7 @@ void set_block_meta(struct block_meta *newBlock, int status, size_t size) {
 	newBlock->next = newBlock->prev = NULL;
 }
 
-struct block_meta *split_chunk(struct block_meta *newBlock, size_t neededSize, size_t alignedBlockMeta) {	
-
+struct block_meta *split_chunk(struct block_meta *newBlock, size_t neededSize, size_t alignedBlockMeta) {
 	if (newBlock->size >= neededSize + alignedBlockMeta + ALIGNED_BYTE) {
 		//  Add a new meta block after the needed payload
 		struct block_meta *newSplitBlock;
@@ -87,7 +85,6 @@ struct block_meta *split_chunk(struct block_meta *newBlock, size_t neededSize, s
 }
 
 struct block_meta *find_block_with_size(struct block_meta **memoryHead, size_t size) {
-
 	if (*memoryHead == NULL) {
 		return NULL;
 	}
@@ -218,7 +215,6 @@ void *os_malloc(size_t size)
 		return (void*)(((char*)newBlock) + alignedBlockMeta);
 
 	} else if (alignedAll < THRESHOLD && heap_preallocation == 1) {
-
 		//  First we look for already free space
 		struct block_meta *newBlock = find_block_with_size(&memoryHead, alignedPayload);
 
@@ -260,7 +256,7 @@ void os_free(void *ptr)
 	if (ptr == NULL) {
 		return;
 	}
-	
+
 	size_t alignedBlockMeta = align_block(sizeof(struct block_meta));
 	struct block_meta *blockPointer = find_the_block_ptr(ptr, alignedBlockMeta);
 
@@ -280,7 +276,7 @@ void *os_calloc(size_t nmemb, size_t size)
 {
 	/* TODO: Implement os_calloc */
 	void *pointer = os_malloc(align_block(nmemb * size));
-	
+
 	memset(pointer, 0, align_block(nmemb * size));
 
 	return pointer;
