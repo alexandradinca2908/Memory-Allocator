@@ -9,7 +9,8 @@ struct block_meta *memoryHead = NULL;
 int heap_preallocation = 0;
 
 //  Making the given size a multiple of 8 bytes
-size_t align_block(size_t size) {
+size_t align_block(size_t size)
+{
 	if (size % 8 == 0) {
 		return size;
 	}
@@ -17,7 +18,8 @@ size_t align_block(size_t size) {
 }
 
 //  Add a new meta block in memory list
-void add_block_in_list(struct block_meta **memoryHead, struct block_meta *newBlock) {
+void add_block_in_list(struct block_meta **memoryHead, struct block_meta *newBlock)
+{
 	//  Check to see if it's the first alloc
 	if (*memoryHead == NULL) {
 		*memoryHead = newBlock;
@@ -58,21 +60,24 @@ void add_block_in_list(struct block_meta **memoryHead, struct block_meta *newBlo
 	}
 }
 
-void set_block_meta(struct block_meta *newBlock, int status, size_t size) {
+void set_block_meta(struct block_meta *newBlock, int status, size_t size)
+{
 	newBlock->status = status;
 	newBlock->size = size;
 	newBlock->next = newBlock->prev = NULL;
 }
 
-struct block_meta *split_chunk(struct block_meta *newBlock, size_t neededSize, size_t alignedBlockMeta) {
+struct block_meta *split_chunk(struct block_meta *newBlock, size_t neededSize, size_t alignedBlockMeta)
+{
 	if (newBlock->size >= neededSize + alignedBlockMeta + ALIGNED_BYTE) {
 		//  Add a new meta block after the needed payload
 		struct block_meta *newSplitBlock;
+
 		newSplitBlock = (struct block_meta *)((char *)newBlock + alignedBlockMeta + neededSize);
 
 		//  Declare the remaining space as unused and update info
 		newSplitBlock->next = newBlock->next;
-		newSplitBlock->size = newBlock->size - neededSize - alignedBlockMeta;;
+		newSplitBlock->size = newBlock->size - neededSize - alignedBlockMeta;
 		newSplitBlock->status = STATUS_FREE;
 
 		//  Connect the two new blocks in list and update new block
@@ -84,10 +89,10 @@ struct block_meta *split_chunk(struct block_meta *newBlock, size_t neededSize, s
 	return newBlock;
 }
 
-struct block_meta *find_block_with_size(struct block_meta **memoryHead, size_t size) {
-	if (*memoryHead == NULL) {
+struct block_meta *find_block_with_size(struct block_meta **memoryHead, size_t size)
+{
+	if (*memoryHead == NULL)
 		return NULL;
-	}
 
 	struct block_meta *iter = *memoryHead;
 	struct block_meta *iterNext = iter->next;
@@ -112,11 +117,10 @@ struct block_meta *find_block_with_size(struct block_meta **memoryHead, size_t s
 	iter = *memoryHead;
 	while (iter != NULL) {
 		if (iter->status == STATUS_FREE && iter->size >= size) {
-			if (best_block == NULL) {
+			if (best_block == NULL)
 				best_block = iter;
-			} else if (best_block->size < iter->size) {
+			else if (best_block->size < iter->size)
 				best_block = iter;
-			}
 		}
 		iter = iter->next;
 	}
@@ -129,7 +133,9 @@ struct block_meta *find_block_with_size(struct block_meta **memoryHead, size_t s
 
 		if (iter->status == STATUS_FREE) {
 			void *area = sbrk(align_block(size - iter->size));
+
 			DIE(area == MAP_FAILED, "Error in expanding the last block");
+
 			set_block_meta(iter, STATUS_ALLOC, size);
 
 			return iter;
@@ -142,11 +148,13 @@ struct block_meta *find_block_with_size(struct block_meta **memoryHead, size_t s
 	return best_block;
 }
 
-struct block_meta *find_the_block_ptr(void *ptr, size_t alignedBlockMeta) {
+struct block_meta *find_the_block_ptr(void *ptr, size_t alignedBlockMeta)
+{
 	return (struct block_meta *)(((char *)ptr) - alignedBlockMeta);
 }
 
-void remove_block_from_list(struct block_meta **memoryHead, struct block_meta *block) {
+void remove_block_from_list(struct block_meta **memoryHead, struct block_meta *block)
+{
 	if ((*memoryHead) == block) {
 		//  If the block is first in list, we just move the head
 		(*memoryHead) = (*memoryHead)->next;
@@ -155,14 +163,12 @@ void remove_block_from_list(struct block_meta **memoryHead, struct block_meta *b
 	} else {
 		struct block_meta *iter = *memoryHead;
 
-		while (iter->next != block && iter->next != NULL) {
+		while (iter->next != block && iter->next != NULL)
 			iter = iter->next;
-		}
 
 		//  Not found
-		if (iter->next == NULL) {
+		if (iter->next == NULL)
 			return;
-		}
 
 		// Found
 		iter->next = block->next;
@@ -170,7 +176,8 @@ void remove_block_from_list(struct block_meta **memoryHead, struct block_meta *b
 	}
 }
 
-void *malloc_calloc_implementation(size_t size, size_t threshold) {
+void *malloc_calloc_implementation(size_t size, size_t threshold)
+{
 	if (size == 0)
 		return NULL;
 
@@ -182,7 +189,9 @@ void *malloc_calloc_implementation(size_t size, size_t threshold) {
 	if (alignedAll >= threshold) {
 		//  Alloc memory, check alloc, create meta data
 		void *area = mmap(NULL, alignedAll, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
 		DIE(area == MAP_FAILED, "ERROR IN MAPPING\n");
+
 		struct block_meta *newBlock = (struct block_meta *)area;
 
 		//  Setting the metadata
@@ -200,7 +209,9 @@ void *malloc_calloc_implementation(size_t size, size_t threshold) {
 
 		//  Alloc memory, check alloc, create meta data
 		void *area = sbrk(THRESHOLD);
+
 		DIE(area == MAP_FAILED, "ERROR IN PREALLOCATION\n");
+
 		struct block_meta *newBlock = (struct block_meta *)area;
 
 		//  Setting the metadata
@@ -210,7 +221,7 @@ void *malloc_calloc_implementation(size_t size, size_t threshold) {
 		add_block_in_list(&memoryHead, newBlock);
 
 		//  Returning only the needed area
-		return (void*)(((char*)newBlock) + alignedBlockMeta);
+		return (void *)(((char *)newBlock) + alignedBlockMeta);
 
 	} else if (alignedAll < threshold && heap_preallocation == 1) {
 		//  First we look for already free space
@@ -219,7 +230,9 @@ void *malloc_calloc_implementation(size_t size, size_t threshold) {
 		if (newBlock == NULL) {
 			//  Didn't find any, so we just alloc a new chunk
 			void *area = sbrk(alignedAll);
+
 			DIE(area == MAP_FAILED, "ERROR IN ALLOCATION\n");
+
 			newBlock = (struct block_meta *)area;
 
 			//  Setting the metadata
@@ -229,17 +242,17 @@ void *malloc_calloc_implementation(size_t size, size_t threshold) {
 			add_block_in_list(&memoryHead, newBlock);
 
 			//  Returning only the needed area
-			return (void*)((char*)newBlock + alignedBlockMeta);
-		} else {
-			//  Found some free space
-			//  Splitting our new block to only use the needed amount
-			struct block_meta *ret = split_chunk(newBlock, alignedPayload, alignedBlockMeta);
-
-			//  Block already in list
-
-			//  Returning only the needed area
-			return (void*)((char*)ret + alignedBlockMeta);
+			return (void *)((char *)newBlock + alignedBlockMeta);
 		}
+
+		//  Found some free space
+		//  Splitting our new block to only use the needed amount
+		struct block_meta *ret = split_chunk(newBlock, alignedPayload, alignedBlockMeta);
+
+		//  Block already in list
+
+		//  Returning only the needed area
+		return (void *)((char *)ret + alignedBlockMeta);
 	}
 
 	//  If an error occurs and no ifs are checked, return NULL
@@ -257,9 +270,8 @@ void os_free(void *ptr)
 	/* TODO: Implement os_free */
 
 	//  If pointer is NULL, we exit
-	if (ptr == NULL) {
+	if (ptr == NULL)
 		return;
-	}
 
 	size_t alignedBlockMeta = align_block(sizeof(struct block_meta));
 	struct block_meta *blockPointer = find_the_block_ptr(ptr, alignedBlockMeta);
@@ -268,6 +280,7 @@ void os_free(void *ptr)
 		//  If the memory is mapped, we just free it
 		remove_block_from_list(&memoryHead, blockPointer);
 		int ret = munmap((void *)blockPointer, blockPointer->size + alignedBlockMeta);
+
 		DIE(ret == -1, "ERROR IN MUNMAP\n");
 
 	} else if (blockPointer->status == STATUS_ALLOC) {
@@ -311,9 +324,8 @@ void *os_realloc(void *ptr, size_t size)
 	struct block_meta *oldBlock = find_the_block_ptr(ptr, alignedBlockMeta);
 
 	//  Same size doesn't require realloc
-	if (oldBlock->size == alignedPayload) {
+	if (oldBlock->size == alignedPayload)
 		return ptr;
-	}
 
 	//  Case 1
 	//  Mapped memory or memory exceeding threshold gets (re)mapped
@@ -355,6 +367,7 @@ void *os_realloc(void *ptr, size_t size)
 			//  If we can't merge, we try to expand the block (only if it's the last)
 			} else if (adjBlock == NULL) {
 				void *area = sbrk(align_block(alignedPayload - oldBlock->size));
+
 				DIE(area == MAP_FAILED, "Error in expanding the last block");
 
 				//  Update the meta block
@@ -365,6 +378,7 @@ void *os_realloc(void *ptr, size_t size)
 
 			//  We can't do anything so we just alloc a new chunk
 			void *area = os_malloc(alignedPayload);
+
 			memcpy(area, ptr, oldBlock->size);
 
 			//  Free the old block
@@ -375,6 +389,7 @@ void *os_realloc(void *ptr, size_t size)
 		//  Memory reduction
 		} else {
 			struct block_meta *newBlock = split_chunk(oldBlock, alignedPayload, alignedBlockMeta);
+
 			return (void *)(((char *)newBlock) + alignedBlockMeta);
 		}
 	}
