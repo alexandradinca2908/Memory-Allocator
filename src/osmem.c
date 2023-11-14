@@ -310,7 +310,7 @@ void *os_realloc(void *ptr, size_t size)
 	size_t alignedAll = alignedBlockMeta + alignedPayload;
 	struct block_meta *oldBlock = find_the_block_ptr(ptr, alignedBlockMeta);
 
-	//  Same size doesn't require realloc	
+	//  Same size doesn't require realloc
 	if (oldBlock->size == alignedPayload) {
 		return ptr;
 	}
@@ -324,7 +324,7 @@ void *os_realloc(void *ptr, size_t size)
 		//  Copy the data
 		if (oldBlock->size < alignedPayload) {
 			//  Expansion
-			memcpy(area, ptr, oldBlock->size);	
+			memcpy(area, ptr, oldBlock->size);
 		} else {
 			//  Reduction
 			memcpy(area, ptr, alignedPayload);
@@ -333,7 +333,7 @@ void *os_realloc(void *ptr, size_t size)
 		//  Free the old block
 		os_free(ptr);
 
-		return area; 
+		return area;
 	}
 
 	//  Case 2
@@ -356,7 +356,7 @@ void *os_realloc(void *ptr, size_t size)
 			} else if (adjBlock == NULL) {
 				void *area = sbrk(align_block(alignedPayload - oldBlock->size));
 				DIE(area == MAP_FAILED, "Error in expanding the last block");
-				
+
 				//  Update the meta block
 				oldBlock->size = alignedPayload;
 
@@ -365,13 +365,13 @@ void *os_realloc(void *ptr, size_t size)
 
 			//  We can't do anything so we just alloc a new chunk
 			void *area = os_malloc(alignedPayload);
-			memcpy(area, ptr, oldBlock->size);	
+			memcpy(area, ptr, oldBlock->size);
 
 			//  Free the old block
 			os_free(ptr);
 
 			return area;
-		
+
 		//  Memory reduction
 		} else {
 			struct block_meta *newBlock = split_chunk(oldBlock, alignedPayload, alignedBlockMeta);
