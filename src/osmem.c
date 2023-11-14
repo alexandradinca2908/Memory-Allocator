@@ -170,9 +170,7 @@ void remove_block_from_list(struct block_meta **memoryHead, struct block_meta *b
 	}
 }
 
-void *os_malloc(size_t size)
-{
-	/* TODO: Implement os_malloc */
+void *malloc_calloc_implementation(size_t size, size_t threshold) {
 	if (size == 0)
 		return NULL;
 
@@ -181,7 +179,7 @@ void *os_malloc(size_t size)
 	size_t alignedPayload = align_block(size);
 	size_t alignedAll = alignedPayload + alignedBlockMeta;
 
-	if (alignedAll >= THRESHOLD) {
+	if (alignedAll >= threshold) {
 		//  Alloc memory, check alloc, create meta data
 		void *area = mmap(NULL, alignedAll, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 		DIE(area == MAP_FAILED, "ERROR IN MAPPING\n");
@@ -196,7 +194,7 @@ void *os_malloc(size_t size)
 		//  Returning only the needed area
 		return (void *)(((char *)area) + alignedBlockMeta);
 
-	} else if (alignedAll < THRESHOLD && heap_preallocation == 0) {
+	} else if (alignedAll < threshold && heap_preallocation == 0) {
 		//  First and only prealloc
 		heap_preallocation = 1;
 
@@ -214,7 +212,7 @@ void *os_malloc(size_t size)
 		//  Returning only the needed area
 		return (void*)(((char*)newBlock) + alignedBlockMeta);
 
-	} else if (alignedAll < THRESHOLD && heap_preallocation == 1) {
+	} else if (alignedAll < threshold && heap_preallocation == 1) {
 		//  First we look for already free space
 		struct block_meta *newBlock = find_block_with_size(&memoryHead, alignedPayload);
 
@@ -248,6 +246,12 @@ void *os_malloc(size_t size)
 	return NULL;
 }
 
+void *os_malloc(size_t size)
+{
+	/* TODO: Implement os_malloc */
+	return malloc_calloc_implementation(size, THRESHOLD);
+}
+
 void os_free(void *ptr)
 {
 	/* TODO: Implement os_free */
@@ -275,7 +279,8 @@ void os_free(void *ptr)
 void *os_calloc(size_t nmemb, size_t size)
 {
 	/* TODO: Implement os_calloc */
-	void *pointer = os_malloc(align_block(nmemb * size));
+	size_t alignedSize = align_block(nmemb * size);
+	void *pointer = malloc_calloc_implementation(alignedSize, getpagesize());
 
 	memset(pointer, 0, align_block(nmemb * size));
 
@@ -285,14 +290,93 @@ void *os_calloc(size_t nmemb, size_t size)
 void *os_realloc(void *ptr, size_t size)
 {
 	/* TODO: Implement os_realloc */
-	// NULL pointer needs completely new allocation
+
+	//  There are 2 cases
+	//  Case 1: mapped memory expansion/reduction
+	//  Case 2: brk memory expansion/reduction
+
+	//  NULL pointer needs completely new allocation
 	if (ptr == NULL)
 		return os_malloc(size);
 
-	// Size 0 means free
+	//  Size 0 means free
 	if (size == 0) {
 		os_free(ptr);
 		return NULL;
+	}
+
+	size_t alignedBlockMeta = align_block(sizeof(struct block_meta));
+	size_t alignedPayload = align_block(size);
+	size_t alignedAll = alignedBlockMeta + alignedPayload;
+	struct block_meta *oldBlock = find_the_block_ptr(ptr, alignedBlockMeta);
+
+	//  Same size doesn't require realloc	
+	if (oldBlock->size == alignedPayload) {
+		return ptr;
+	}
+
+	//  Case 1
+	//  Mapped memory or memory exceeding threshold gets (re)mapped
+	if (oldBlock->status == STATUS_MAPPED || alignedAll >= THRESHOLD) {
+		//  Map new area
+		void *area = os_malloc(alignedPayload);
+
+		//  Copy the data
+		if (oldBlock->size < alignedPayload) {
+			//  Expansion
+			memcpy(area, ptr, oldBlock->size);	
+		} else {
+			//  Reduction
+			memcpy(area, ptr, alignedPayload);
+		}
+
+		//  Free the old block
+		os_free(ptr);
+
+		return area; 
+	}
+
+	//  Case 2
+	if (oldBlock->status == STATUS_ALLOC) {
+		//  Memory expansion
+		if (oldBlock->size < alignedPayload) {
+			struct block_meta *adjBlock = oldBlock->next;
+			struct block_meta *newBlock = NULL;
+			//  We check to see if we can merge 2 blocks
+			if (adjBlock != NULL && adjBlock->status == STATUS_FREE) {
+				oldBlock->size += adjBlock->size + alignedBlockMeta;
+				oldBlock->next = adjBlock->next;
+
+				if (oldBlock->size >= alignedPayload) {
+					newBlock = split_chunk(oldBlock, alignedPayload, alignedBlockMeta);
+					return (void *)(((char *)newBlock) + alignedBlockMeta);
+				}
+
+			//  If we can't merge, we try to expand the block (only if it's the last)
+			} else if (adjBlock == NULL) {
+				void *area = sbrk(align_block(alignedPayload - oldBlock->size));
+				DIE(area == MAP_FAILED, "Error in expanding the last block");
+				
+				//  Update the meta block
+				oldBlock->size = alignedPayload;
+
+				return ptr;
+			}
+
+			//  We can't do anything so we just alloc a new chunk
+			void *area = os_malloc(alignedPayload);
+			memcpy(area, ptr, oldBlock->size);	
+
+			//  Free the old block
+			os_free(ptr);
+
+			return area;
+		
+		//  Memory reduction
+		} else {
+			struct block_meta *newBlock = split_chunk(oldBlock, alignedPayload, alignedBlockMeta);
+			return (void *)(((char *)newBlock) + alignedBlockMeta);
+		}
 	}
 
 	return NULL;
