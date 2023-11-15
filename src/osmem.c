@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "osmem.h"
+#include "util.h"
 
 //  Global list of allocated memory
 struct block_meta *memoryHead;
@@ -64,7 +64,7 @@ void set_block_meta(struct block_meta *newBlock, int status, size_t size)
 {
 	newBlock->status = status;
 	newBlock->size = size;
-	newBlock->next = newBlock->prev = NULL;
+	newBlock->next = NULL;
 }
 
 struct block_meta *split_chunk(struct block_meta *newBlock, size_t neededSize, size_t alignedBlockMeta)
@@ -369,7 +369,7 @@ void *os_realloc(void *ptr, size_t size)
 
 			//  If we can't merge, we try to expand the block (only if it's the last)
 			if (oldBlock->next == NULL) {
-				void *area = sbrk(align_block(alignedPayload - oldBlock->size));
+				void *area = sbrk(alignedPayload - oldBlock->size);
 
 				DIE(area == MAP_FAILED, "Error in expanding the last block");
 
@@ -380,7 +380,7 @@ void *os_realloc(void *ptr, size_t size)
 			}
 
 			//  We can't do anything so we just alloc a new chunk
-			void *area = os_malloc(alignedPayload);
+			void *area = os_malloc(size);
 
 			memcpy(area, ptr, oldBlock->size);
 
