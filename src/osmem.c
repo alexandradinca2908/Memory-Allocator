@@ -14,7 +14,7 @@ size_t align_block(size_t size)
 	if (size % 8 == 0)
 		return size;
 
-    return size + (ALIGNMENT_8_BYTE - size % ALIGNMENT_8_BYTE);
+	return size + (ALIGNMENT_8_BYTE - size % ALIGNMENT_8_BYTE);
 }
 
 //  Add a new meta block in memory list
