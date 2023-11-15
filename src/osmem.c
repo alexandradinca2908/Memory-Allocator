@@ -3,17 +3,17 @@
 #include "osmem.h"
 
 //  Global list of allocated memory
-struct block_meta *memoryHead = NULL;
+struct block_meta *memoryHead;
 
 //  Heap preallocation happens only once, so we set a global index
-int heap_preallocation = 0;
+int heap_preallocation;
 
 //  Making the given size a multiple of 8 bytes
 size_t align_block(size_t size)
 {
-	if (size % 8 == 0) {
+	if (size % 8 == 0)
 		return size;
-	}
+
     return size + (ALIGNMENT_8_BYTE - size % ALIGNMENT_8_BYTE);
 }
 
@@ -350,30 +350,33 @@ void *os_realloc(void *ptr, size_t size)
 
 	//  Case 2
 	if (oldBlock->status == STATUS_ALLOC) {
-		//  Memory expansion
+		struct block_meta *adjBlock = oldBlock->next;
+		struct block_meta *newBlock = NULL;
+
 		if (oldBlock->size < alignedPayload) {
-			struct block_meta *adjBlock = oldBlock->next;
-			struct block_meta *newBlock = NULL;
-			//  We check to see if we can merge 2 blocks
-			if (adjBlock != NULL && adjBlock->status == STATUS_FREE) {
+			//  We check to see if we can merge blocks
+			//  Merge as many blocks as needed
+			while (adjBlock != NULL && adjBlock->status == STATUS_FREE) {
 				oldBlock->size += adjBlock->size + alignedBlockMeta;
-				oldBlock->next = adjBlock->next;
+				adjBlock = adjBlock->next;
+				oldBlock->next = adjBlock;
 
 				if (oldBlock->size >= alignedPayload) {
 					newBlock = split_chunk(oldBlock, alignedPayload, alignedBlockMeta);
 					return (void *)(((char *)newBlock) + alignedBlockMeta);
 				}
+			}
 
 			//  If we can't merge, we try to expand the block (only if it's the last)
-			} else if (adjBlock == NULL) {
+			if (oldBlock->next == NULL) {
 				void *area = sbrk(align_block(alignedPayload - oldBlock->size));
 
 				DIE(area == MAP_FAILED, "Error in expanding the last block");
 
 				//  Update the meta block
-				oldBlock->size = alignedPayload;
+				set_block_meta(oldBlock, STATUS_ALLOC, alignedPayload);
 
-				return ptr;
+				return (void *)(((char *)oldBlock) + alignedBlockMeta);
 			}
 
 			//  We can't do anything so we just alloc a new chunk
