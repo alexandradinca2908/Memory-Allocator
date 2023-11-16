@@ -187,24 +187,7 @@ void *malloc_calloc_implementation(size_t size, size_t threshold)
 	size_t alignedPayload = align_block(size);
 	size_t alignedAll = alignedPayload + alignedBlockMeta;
 
-	if (alignedAll >= threshold) {
-		//  Alloc memory, check alloc, create meta data
-		void *area = mmap(NULL, alignedAll, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-
-		DIE(area == MAP_FAILED, "ERROR IN MAPPING\n");
-
-		struct block_meta *newBlock = (struct block_meta *)area;
-
-		//  Setting the metadata
-		set_block_meta(newBlock, STATUS_MAPPED, alignedPayload);
-
-		//  Adding the alloc'd memory in our memory list
-		add_block_in_list(&memoryHead, newBlock);
-
-		//  Returning only the needed area
-		return (void *)(((char *)area) + alignedBlockMeta);
-
-	} else if (alignedAll < threshold && heap_preallocation == 0) {
+	if (alignedAll < threshold && heap_preallocation == 0) {
 		//  First and only prealloc
 		heap_preallocation = 1;
 
@@ -254,6 +237,23 @@ void *malloc_calloc_implementation(size_t size, size_t threshold)
 
 		//  Returning only the needed area
 		return (void *)((char *)ret + alignedBlockMeta);
+
+	} else if (alignedAll >= threshold) {
+		//  Alloc memory, check alloc, create meta data
+		void *area = mmap(NULL, alignedAll, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+		DIE(area == MAP_FAILED, "ERROR IN MAPPING\n");
+
+		struct block_meta *newBlock = (struct block_meta *)area;
+
+		//  Setting the metadata
+		set_block_meta(newBlock, STATUS_MAPPED, alignedPayload);
+
+		//  Adding the alloc'd memory in our memory list
+		add_block_in_list(&memoryHead, newBlock);
+
+		//  Returning only the needed area
+		return (void *)(((char *)area) + alignedBlockMeta);
 	}
 
 	//  If an error occurs and no ifs are checked, return NULL
