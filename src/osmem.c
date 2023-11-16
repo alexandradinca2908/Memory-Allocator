@@ -77,6 +77,7 @@ struct block_meta *split_chunk(struct block_meta *newBlock, size_t neededSize, s
 
 		//  Declare the remaining space as unused and update info
 		newSplitBlock->next = newBlock->next;
+		newSplitBlock->prev = newBlock;
 		newSplitBlock->size = newBlock->size - neededSize - alignedBlockMeta;
 		newSplitBlock->status = STATUS_FREE;
 
@@ -119,7 +120,7 @@ struct block_meta *find_block_with_size(struct block_meta **memoryHead, size_t s
 		if (iter->status == STATUS_FREE && iter->size >= size) {
 			if (best_block == NULL)
 				best_block = iter;
-			else if (best_block->size < iter->size)
+			else if (best_block->size > iter->size)
 				best_block = iter;
 		}
 		iter = iter->next;
